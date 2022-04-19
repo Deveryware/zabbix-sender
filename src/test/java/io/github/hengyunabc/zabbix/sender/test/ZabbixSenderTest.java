@@ -14,6 +14,7 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicReference;
+import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 
@@ -22,7 +23,7 @@ public class ZabbixSenderTest {
     String host = "127.0.0.1";
     int port = 49156;
 
-    private final AtomicReference<byte[]> result = new AtomicReference<>();
+    private final AtomicReference<byte[]> receivedResult = new AtomicReference<>();
     private final CountDownLatch countDownLatch = new CountDownLatch(1);
 
     @Before
@@ -34,7 +35,7 @@ public class ZabbixSenderTest {
         new Thread(() -> {
             try {
                 Socket socket = serverSocket.accept();
-                socket.setSoTimeout(100);
+                socket.setSoTimeout(400);
                 socket.setTcpNoDelay(true);
                 final var inputStream = socket.getInputStream();
                 final var buffer = new byte[1000];
@@ -46,14 +47,11 @@ public class ZabbixSenderTest {
                             break;
                         }
                         buffer[readCount++] = (byte) value;
-                        if (value == '\n') {
-                            break;
-                        }
                     }
                 } catch (IOException e) {
                     // Ignore
                 }
-                this.result.set(Arrays.copyOf(buffer, readCount));
+                this.receivedResult.set(Arrays.copyOf(buffer, readCount));
                 final byte[][] response =
                         {new byte[]{'[', 'Z', 'B', 'X', 'D', ' ', 0, 0, 0, 0, 0, 0, 0},
                                 "{     \"response\":\"success\",     \"info\":\"processed: 1; failed: 0; total: 1; seconds spent: 0.060753\" }\n".getBytes(StandardCharsets.UTF_8)};
@@ -99,8 +97,7 @@ public class ZabbixSenderTest {
         } else {
             System.err.println("send fail!");
         }
-
-
+        Assert.assertTrue(result.success());
     }
 
     @Test
@@ -112,7 +109,8 @@ public class ZabbixSenderTest {
         dataObject.setHost("172.17.42.1");
         dataObject.setKey("a[test, jvm.mem.non-heap.used]");
         dataObject.setValue("10");
-        dataObject.setClock(System.currentTimeMillis() / 1000);
+        final var clock = System.currentTimeMillis() / 1000;
+        dataObject.setClock(clock);
         SenderResult result = zabbixSender.send(dataObject);
 
         System.out.println("result:" + result);
@@ -121,5 +119,10 @@ public class ZabbixSenderTest {
         } else {
             System.err.println("send fail!");
         }
+        Assert.assertTrue(result.success());
+        byte[] buffer = new byte[receivedResult.get().length - 13];
+        System.arraycopy(receivedResult.get(), 13, buffer, 0, buffer.length);
+        final var jsonObject = JSONObject.parseObject(new String(buffer));
+        System.out.println(jsonObject);
     }
 }
