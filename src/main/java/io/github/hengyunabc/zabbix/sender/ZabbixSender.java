@@ -14,13 +14,14 @@ import java.util.List;
 import java.util.regex.Pattern;
 
 /**
- *
+ * https://www.zabbix.com/documentation/current/en/manual/appendix/items/trapper
+ * 
  * @author hengyunabc
  *
  */
 public class ZabbixSender {
     private static final Pattern PATTERN = Pattern.compile("[^0-9\\.]+");
-    private final static Charset UTF8 = Charset.forName("UTF-8");
+    private static final Charset UTF8 = Charset.forName("UTF-8");
 
     String host;
 	int port;
@@ -75,6 +76,7 @@ public class ZabbixSender {
 		try {
 			socket = new Socket();
 
+			socket.setTcpNoDelay(true);
 			socket.setSoTimeout(socketTimeout);
 			socket.connect(new InetSocketAddress(host, port), connectTimeout);
 
@@ -86,7 +88,6 @@ public class ZabbixSender {
 			senderRequest.setClock(clock);
 
 			outputStream.write(senderRequest.toBytes());
-
 			outputStream.flush();
 
 			// normal responseData.length < 100
