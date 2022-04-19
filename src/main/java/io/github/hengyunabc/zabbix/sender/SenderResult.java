@@ -20,7 +20,7 @@ public class SenderResult {
 	boolean bReturnEmptyArray = false;
 
 	/**
-	 * if all sended data are processed, will return true, else return false.
+	 * if all sent data are processed, will return true, else return false.
 	 * 
 	 * @return
 	 */
