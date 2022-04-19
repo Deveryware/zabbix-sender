@@ -1,7 +1,5 @@
 package io.github.hengyunabc.zabbix.sender;
 
-import com.alibaba.fastjson.JSON;
-import com.alibaba.fastjson.JSONObject;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -76,71 +74,57 @@ public class ZabbixSender {
     {
         SenderResult senderResult = new SenderResult();
 
-        Socket socket = null;
-        InputStream inputStream = null;
-        OutputStream outputStream = null;
-        try {
-            socket = new Socket();
-
+        try (Socket socket = new Socket()) {
             socket.setSoTimeout(socketTimeout);
             socket.connect(new InetSocketAddress(host, port), connectTimeout);
 
-            inputStream = socket.getInputStream();
-            outputStream = socket.getOutputStream();
+            try (InputStream inputStream = socket.getInputStream();
+                 OutputStream outputStream = socket.getOutputStream()) {
 
-            SenderRequest senderRequest = new SenderRequest();
-            senderRequest.setData(dataObjectList);
-            senderRequest.setClock(clock);
+                SenderRequest senderRequest = new SenderRequest();
+                senderRequest.setData(dataObjectList);
+                senderRequest.setClock(clock);
 
-            outputStream.write(senderRequest.toBytes());
+                outputStream.write(senderRequest.toBytes());
 
-            outputStream.flush();
+                outputStream.flush();
 
-            // normal responseData.length < 100
-            byte[] responseData = new byte[512];
+                // normal responseData.length < 100
+                byte[] responseData = new byte[512];
 
-            int readCount = 0;
+                int readCount = 0;
 
-            while (true) {
-                int read = inputStream.read(responseData, readCount, responseData.length - readCount);
-                if (read <= 0) {
-                    break;
+                while (true) {
+                    int read = inputStream.read(responseData, readCount, responseData.length - readCount);
+                    if (read <= 0) {
+                        break;
+                    }
+                    readCount += read;
                 }
-                readCount += read;
-            }
 
-            if (readCount < 13) {
-                // seems zabbix server return "[]"?
-                senderResult.setbReturnEmptyArray(true);
-            }
+                if (readCount < 13) {
+                    // seems zabbix server return "[]"?
+                    senderResult.setbReturnEmptyArray(true);
+                }
 
-            // header('ZBXD\1') + len + 0
-            // 5 + 4 + 4
-            String jsonString = new String(responseData, 13, readCount - 13, UTF8);
-            JSONObject json = JSON.parseObject(jsonString);
-            String info = json.getString("info");
-            // example info: processed: 1; failed: 0; total: 1; seconds spent:
-            // 0.000053
-            // after split: [, 1, 0, 1, 0.000053]
-            String[] split = PATTERN.split(info);
+                // header('ZBXD\1') + len + 0
+                // 5 + 4 + 4
+                String jsonString = new String(responseData, 13, readCount - 13, UTF8);
+                int infoIndex = jsonString.indexOf("info\":");
+                if (infoIndex != -1) {
+                    String info = jsonString.substring(infoIndex + 6);
+                    // example info: processed: 1; failed: 0; total: 1; seconds spent:
+                    // 0.000053
+                    // after split: [, 1, 0, 1, 0.000053]
+                    String[] split = PATTERN.split(info);
 
-            senderResult.setProcessed(Integer.parseInt(split[1]));
-            senderResult.setFailed(Integer.parseInt(split[2]));
-            senderResult.setTotal(Integer.parseInt(split[3]));
-            senderResult.setSpentSeconds(Float.parseFloat(split[4]));
-
-        } finally {
-            if (socket != null) {
-                socket.close();
-            }
-            if (inputStream != null) {
-                inputStream.close();
-            }
-            if (outputStream != null) {
-                outputStream.close();
+                    senderResult.setProcessed(Integer.parseInt(split[1]));
+                    senderResult.setFailed(Integer.parseInt(split[2]));
+                    senderResult.setTotal(Integer.parseInt(split[3]));
+                    senderResult.setSpentSeconds(Float.parseFloat(split[4]));
+                }
             }
         }
-
         return senderResult;
     }
 

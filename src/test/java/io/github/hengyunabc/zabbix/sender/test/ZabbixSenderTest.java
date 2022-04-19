@@ -54,7 +54,7 @@ public class ZabbixSenderTest {
                 this.receivedResult.set(Arrays.copyOf(buffer, readCount));
                 final byte[][] response =
                         {new byte[]{'[', 'Z', 'B', 'X', 'D', ' ', 0, 0, 0, 0, 0, 0, 0},
-                                "{     \"response\":\"success\",     \"info\":\"processed: 1; failed: 0; total: 1; seconds spent: 0.060753\" }\n".getBytes(StandardCharsets.UTF_8)};
+                                "{     \"response\":\"success\",     \"info\":\"processed: 6; failed: 5; total: 6; seconds spent: 0.060753\" }\n".getBytes(StandardCharsets.UTF_8)};
                 final var outputStream = socket.getOutputStream();
                 for (final byte[] bytes : response) {
                     outputStream.write(bytes);
@@ -124,5 +124,9 @@ public class ZabbixSenderTest {
         System.arraycopy(receivedResult.get(), 13, buffer, 0, buffer.length);
         final var jsonObject = JSONObject.parseObject(new String(buffer));
         System.out.println(jsonObject);
+        Assert.assertEquals(5, result.getFailed());
+        Assert.assertEquals(6, result.getTotal());
+        Assert.assertEquals(6, result.getProcessed());
+        Assert.assertEquals(0.060753, result.getSpentSeconds(), 0.001);
     }
 }
