@@ -26,7 +26,7 @@ public class DataObject {
 
     public String toJson()
     {
-        return "{\"host:\":\"" + host + "\",\"clock\":" + clock + ",\"value\":\"" + value + "\",\"key\":\"" + key + "\"}";
+        return "{\"host\":\"" + host + "\",\"clock\":" + clock + ",\"value\":\"" + value + "\",\"key\":\"" + key + "\"}";
     }
 
     public static class Builder {
